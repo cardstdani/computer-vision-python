@@ -16,7 +16,7 @@ def detectFaces(inputImage):
     return inputImage
 
 
-device = "http://192.168.1.131:4747/video"
+device = 0
 video = cv2.VideoCapture(device)
 
 while True:
