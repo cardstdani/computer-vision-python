@@ -1,55 +1,43 @@
 import cv2
+import mediapipe as mp
 import numpy as np
 
-device = 0
-video = cv2.VideoCapture(device)
+cap = cv2.VideoCapture(0)
+success, i = cap.read()
+width, height, c = i.shape
+drawingImage = np.zeros((width, height, 3), np.uint8)
 
-lowColor = np.array([94, 80, 2])
-highColor = np.array([126, 255, 255])
+mpHands = mp.solutions.hands
+hands = mpHands.Hands()
+mpDraw = mp.solutions.drawing_utils
 
-tempIm = None
-
-x1 = None
-y1 = None
+x, y = 0, 0
+color = (0, 255, 255)
 
 while True:
-    ret, frame = video.read()
-    if ret:
-        if tempIm is None: tempIm = np.zeros(frame.shape, dtype=np.uint8)
-        frame = cv2.flip(frame, 2)
-        frameHSV = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    success, img = cap.read()
+    imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    results = hands.process(imgRGB)
 
-        maskColor = cv2.inRange(frameHSV, lowColor, highColor)
-        maskColor = cv2.erode(maskColor, None, iterations=1)
-        maskColor = cv2.dilate(maskColor, None, iterations=2)
-        maskColor = cv2.medianBlur(maskColor, 13)
-        cnts, _ = cv2.findContours(maskColor, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:1]
+    if results.multi_hand_landmarks:
+        for handLms in results.multi_hand_landmarks:  # Por cada mano
+            fingerList = []
+            for id, lm in enumerate(handLms.landmark):  # Por cada dedo detectado
+                h, w, c = img.shape
+                cx, cy = int(lm.x * w), int(lm.y * h)
+                fingerList.append([cx, cy])
 
-        for c in cnts:
-            x, y2, w, h = cv2.boundingRect(c)
-
+            x2, y2 = fingerList[8][0], fingerList[8][1]
+            #cv2.circle(img, (fingerList[4][0], fingerList[4][1]), 8, color, cv2.FILLED)
+            cv2.circle(img, (x2, y2), 8, color, cv2.FILLED)
             if cv2.waitKey(1) & 0xFF == ord('a'):
-                x2 = (x + w // 2)
-                if x1 != None:
-                    tempIm = cv2.line(tempIm, (x1, y1), (x2, y2), (0, 255, 0), 3)
-                cv2.circle(frame, (x2, y2), 5, (0, 255, 0), -1)
-                x1 = x2
-                y1 = y2
-            #cv2.rectangle(frame, (x, y2), (x + w, y2 + h), (0, 255, 0), 2)
+                if (x == 0) and (y == 0):
+                    x, y = (x2, y2)
+                cv2.line(drawingImage, (x, y), (x2, y2), color, 3)
+                x, y = (x2, y2)
+            #mpDraw.draw_landmarks(img, handLms, mpHands.HAND_CONNECTIONS)
 
-        gray = cv2.cvtColor(tempIm, cv2.COLOR_BGR2GRAY)
-        _, th = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
-        thInv = cv2.bitwise_not(th)
-        frame = cv2.bitwise_and(frame, frame, mask=thInv)
-        frame = cv2.add(frame, tempIm)
-
-        cv2.imshow('mask', maskColor)
-        cv2.imshow('frame', frame)
-        cv2.imshow('frame temp', tempIm)
-        # cv2.imshow('frame hsv', frameHSV)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-video.release()
-cv2.destroyAllWindows()
+    cv2.imshow("Image", img)
+    cv2.imshow("Draw", drawingImage)
+    if cv2.waitKey(5) & 0xFF == 113:
+        break
