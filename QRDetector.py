@@ -2,12 +2,12 @@ import cv2
 import numpy as np
 from pyzbar.pyzbar import decode
 
-device = "http://192.168.1.169:4747/video"
+device = 0
 video = cv2.VideoCapture(device)
 
 while True:
-    ret, frame = video.read()
-    if (ret):
+    s, frame = video.read()
+    if (s):
         #frame = cv2.flip(frame, 1)
 
         for barcode in decode(frame):
