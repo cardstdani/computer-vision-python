@@ -1,32 +1,33 @@
 import cv2
+import mediapipe as mp
 
+mp_drawing = mp.solutions.drawing_utils
+mp_face_mesh = mp.solutions.face_mesh
 
-def detectFaces(inputImage):
-    haar_cascade = cv2.CascadeClassifier('haar_face.xml')
-    faces_rect = haar_cascade.detectMultiScale(cv2.cvtColor(inputImage, cv2.COLOR_BGR2GRAY), scaleFactor=1.1, minNeighbors=3)
+drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
+v = cv2.VideoCapture(0)
+with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5) as face_mesh:
+    while v.isOpened():
+        success, image = v.read()
+        if not success:
+            continue
 
-    # print(f'Number of faces found = {len(faces_rect)}')
+        #image = cv2.flip(image, 1)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+        results = face_mesh.process(image)
 
-    face = 1
-    for (x, y, w, h) in faces_rect:
-        # return inputImage[y:y + h, x:x + w, :] #Crop the face
-        cv2.putText(inputImage, 'R ' + str(face), (x, y), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.rectangle(inputImage, (x, y), (x + w, y + h), (0, 255, 0), thickness=2)
-        face += 1
-    return inputImage
-
-
-device = 0
-video = cv2.VideoCapture(device)
-
-while True:
-    ret, frame = video.read()
-    if (ret):
-        # frame = cv.flip(frame, 1)
-        cv2.imshow('frame', detectFaces(frame))
-        # cv.imshow('frame2', cv.Canny(detectFaces(frame), 0, 300))
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        if results.multi_face_landmarks:
+            for face_landmarks in results.multi_face_landmarks:
+                mp_drawing.draw_landmarks(
+                    image=image,
+                    landmark_list=face_landmarks,
+                    connections=mp_face_mesh.FACE_CONNECTIONS,
+                    landmark_drawing_spec=drawing_spec,
+                    connection_drawing_spec=drawing_spec)
+        cv2.imshow('FaceDetection', image)
+        if cv2.waitKey(5) & 0xFF == 113:
             break
-
-video.release()
-cv2.destroyAllWindows()
+v.release()
